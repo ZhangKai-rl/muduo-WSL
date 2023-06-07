@@ -1,2 +1,0 @@
-/usr/bin/llvm-ar qc ../../../lib/libmuduo_protobuf_codec.a CMakeFiles/muduo_protobuf_codec.dir/ProtobufCodecLite.cc.o
-/usr/bin/llvm-ranlib ../../../lib/libmuduo_protobuf_codec.a
