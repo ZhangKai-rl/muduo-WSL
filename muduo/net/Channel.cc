@@ -55,7 +55,7 @@ void Channel::update()
   addedToLoop_ = true;
   loop_->updateChannel(this);
 }
-
+// 这两个方法都是调用eventloop中epollpoller的epollctl
 void Channel::remove()
 {
   assert(isNoneEvent());
@@ -80,10 +80,12 @@ void Channel::handleEvent(Timestamp receiveTime)
   }
 }
 
+// 根据epoll监听到fd上发生的事件调用channel相应回调函数。 withguard含义
 void Channel::handleEventWithGuard(Timestamp receiveTime)
 {
   eventHandling_ = true;
   LOG_TRACE << reventsToString();
+  // 关闭
   if ((revents_ & POLLHUP) && !(revents_ & POLLIN))
   {
     if (logHup_)
@@ -106,6 +108,7 @@ void Channel::handleEventWithGuard(Timestamp receiveTime)
   {
     if (readCallback_) readCallback_(receiveTime);
   }
+  // 返回写事件
   if (revents_ & POLLOUT)
   {
     if (writeCallback_) writeCallback_();

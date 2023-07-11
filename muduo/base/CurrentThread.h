@@ -13,11 +13,11 @@ namespace muduo
 namespace CurrentThread
 {
   // internal
-  extern __thread int t_cachedTid;
+  extern __thread int t_cachedTid;  // 线程独享。每个线程都拥有这个变量的副本，互相独立互不干扰
   extern __thread char t_tidString[32];
   extern __thread int t_tidStringLength;
   extern __thread const char* t_threadName;
-  void cacheTid();
+  void cacheTid();  // 获取tid并缓存tid，缓存是为了防止多次系统调用
 
   inline int tid()
   {

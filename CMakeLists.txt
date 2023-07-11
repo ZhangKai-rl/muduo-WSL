@@ -13,6 +13,7 @@ if(CMAKE_PROJECT_NAME STREQUAL "muduo")
 	#	option(MUDUO_BUILD_EXAMPLES "Build Muduo examples" ON)
 endif()
 
+# 配置编译选项
 set(CXX_FLAGS
  -g
  # -DVALGRIND

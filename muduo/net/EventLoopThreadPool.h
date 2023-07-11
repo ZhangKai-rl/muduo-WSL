@@ -39,10 +39,10 @@ class EventLoopThreadPool : noncopyable
 
   // valid after calling start()
   /// round-robin
-  EventLoop* getNextLoop();
+  EventLoop* getNextLoop();  // 默认以轮询的方式给subloop分配channel；不断获取这个线程池中的loop
 
   /// with the same hash code, it will always return the same EventLoop
-  EventLoop* getLoopForHash(size_t hashCode);
+  EventLoop* getLoopForHash(size_t hashCode);  // hash方式分配
 
   std::vector<EventLoop*> getAllLoops();
 
@@ -58,7 +58,9 @@ class EventLoopThreadPool : noncopyable
   string name_;
   bool started_;
   int numThreads_;
-  int next_;
+  int next_;  // 轮询的下标
+
+  // 保存着这个线程池中的线程及对应loop，不包括主的.    事件线程
   std::vector<std::unique_ptr<EventLoopThread>> threads_;
   std::vector<EventLoop*> loops_;
 };

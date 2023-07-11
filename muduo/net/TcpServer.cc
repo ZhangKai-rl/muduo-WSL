@@ -23,7 +23,7 @@ TcpServer::TcpServer(EventLoop* loop,
                      const InetAddress& listenAddr,
                      const string& nameArg,
                      Option option)
-  : loop_(CHECK_NOTNULL(loop)),
+  : loop_(CHECK_NOTNULL(loop)),  // 必须有mainloop
     ipPort_(listenAddr.toIpPort()),
     name_(nameArg),
     acceptor_(new Acceptor(loop, listenAddr, option == kReusePort)),
@@ -32,6 +32,7 @@ TcpServer::TcpServer(EventLoop* loop,
     messageCallback_(defaultMessageCallback),
     nextConnId_(1)
 {
+  // 注册新连接回调函数。当有新用户连接时acceptor类中绑定的accept channel会有读事件发生，然后执行此函数。
   acceptor_->setNewConnectionCallback(
       std::bind(&TcpServer::newConnection, this, _1, _2));
 }
@@ -58,12 +59,12 @@ void TcpServer::setThreadNum(int numThreads)
 
 void TcpServer::start()
 {
-  if (started_.getAndSet(1) == 0)
+  if (started_.getAndSet(1) == 0)  // 只能启动一个tcpserver
   {
-    threadPool_->start(threadInitCallback_);
+    threadPool_->start(threadInitCallback_);  // 启动最底层的loop线程池
 
     assert(!acceptor_->listenning());
-    loop_->runInLoop(
+    loop_->runInLoop(  // 主loop   创建listenfd进行注册监听
         std::bind(&Acceptor::listen, get_pointer(acceptor_)));
   }
 }
@@ -71,7 +72,10 @@ void TcpServer::start()
 void TcpServer::newConnection(int sockfd, const InetAddress& peerAddr)
 {
   loop_->assertInLoopThread();
+
+  // 轮询将这个新tcpconnection（IO时间）分到一个subloop中
   EventLoop* ioLoop = threadPool_->getNextLoop();
+
   char buf[64];
   snprintf(buf, sizeof buf, "-%s#%d", ipPort_.c_str(), nextConnId_);
   ++nextConnId_;
@@ -80,7 +84,9 @@ void TcpServer::newConnection(int sockfd, const InetAddress& peerAddr)
   LOG_INFO << "TcpServer::newConnection [" << name_
            << "] - new connection [" << connName
            << "] from " << peerAddr.toIpPort();
+
   InetAddress localAddr(sockets::getLocalAddr(sockfd));
+
   // FIXME poll with zero timeout to double confirm the new connection
   // FIXME use make_shared if necessary
   TcpConnectionPtr conn(new TcpConnection(ioLoop,
@@ -88,12 +94,17 @@ void TcpServer::newConnection(int sockfd, const InetAddress& peerAddr)
                                           sockfd,
                                           localAddr,
                                           peerAddr));
-  connections_[connName] = conn;
+  connections_[connName] = conn;  // 所有loop中的tcpconnection都在tcpserver中记录
+
+  // 用户设置给tcpserver => tcpconnection。
   conn->setConnectionCallback(connectionCallback_);
   conn->setMessageCallback(messageCallback_);
   conn->setWriteCompleteCallback(writeCompleteCallback_);
+
   conn->setCloseCallback(
       std::bind(&TcpServer::removeConnection, this, _1)); // FIXME: unsafe
+  
+  // 在分配的这个subloop中（该subloop所属线程）执行TcpConnection::connectEstablished
   ioLoop->runInLoop(std::bind(&TcpConnection::connectEstablished, conn));
 }
 
@@ -106,9 +117,12 @@ void TcpServer::removeConnection(const TcpConnectionPtr& conn)
 void TcpServer::removeConnectionInLoop(const TcpConnectionPtr& conn)
 {
   loop_->assertInLoopThread();
+
   LOG_INFO << "TcpServer::removeConnectionInLoop [" << name_
            << "] - connection " << conn->name();
+
   size_t n = connections_.erase(conn->name());
+  
   (void)n;
   assert(n == 1);
   EventLoop* ioLoop = conn->getLoop();

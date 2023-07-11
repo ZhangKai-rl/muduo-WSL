@@ -105,8 +105,8 @@ void defaultFlush()
   fflush(stdout);
 }
 
-Logger::OutputFunc g_output = defaultOutput;
-Logger::FlushFunc g_flush = defaultFlush;
+Logger::OutputFunc g_output = defaultOutput;  // 设置日志的输出位置
+Logger::FlushFunc g_flush = defaultFlush;  // 冲刷日志
 TimeZone g_logTimeZone;
 
 }  // namespace muduo

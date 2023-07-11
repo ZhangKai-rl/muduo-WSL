@@ -25,7 +25,7 @@ namespace detail
 
 pid_t gettid()
 {
-  return static_cast<pid_t>(::syscall(SYS_gettid));
+  return static_cast<pid_t>(::syscall(SYS_gettid));  // 使用系统调用获取全局唯一的pid
 }
 
 void afterFork()
@@ -49,12 +49,12 @@ class ThreadNameInitializer
 
 ThreadNameInitializer init;
 
-struct ThreadData
+struct ThreadData  // 打包pthread_create中传给线程函数的参数
 {
   typedef muduo::Thread::ThreadFunc ThreadFunc;
   ThreadFunc func_;
   string name_;
-  pid_t* tid_;
+  pid_t* tid_;  // pthread_create的传出参数。在子线程函数中获取子线程的全局唯一pid_t
   CountDownLatch* latch_;
 
   ThreadData(ThreadFunc func,
@@ -176,15 +176,16 @@ void Thread::start()
   started_ = true;
   // FIXME: move(func_)
   detail::ThreadData* data = new detail::ThreadData(func_, name_, &tid_, &latch_);
+  // 创建线程，赋值给pthreadid，并执行dat参数的线程函数
   if (pthread_create(&pthreadId_, NULL, &detail::startThread, data))
   {
     started_ = false;
     delete data; // or no delete?
     LOG_SYSFATAL << "Failed in pthread_create";
   }
-  else
+  else  // 成功船舰
   {
-    latch_.wait();
+    latch_.wait();  // 等待上面新线程获取到tid值。
     assert(tid_ > 0);
   }
 }
@@ -194,7 +195,7 @@ int Thread::join()
   assert(started_);
   assert(!joined_);
   joined_ = true;
-  return pthread_join(pthreadId_, NULL);
+  return pthread_join(pthreadId_, NULL);  // 此为主线程，创建了子线程，主线程回收子线程资源。
 }
 
 }  // namespace muduo

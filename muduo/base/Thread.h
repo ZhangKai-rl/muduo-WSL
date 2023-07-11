@@ -41,13 +41,13 @@ class Thread : noncopyable
 
   bool       started_;
   bool       joined_;
-  pthread_t  pthreadId_;
-  pid_t      tid_;
+  pthread_t  pthreadId_;  // 创建的子线程的id。进程内唯一的。改写使用智能指针封装的c++11线程
+  pid_t      tid_;  // 全局唯一
   ThreadFunc func_;
   string     name_;
   CountDownLatch latch_;
 
-  static AtomicInt32 numCreated_;
+  static AtomicInt32 numCreated_;  // //记录产生的线程的个数
 };
 
 }  // namespace muduo

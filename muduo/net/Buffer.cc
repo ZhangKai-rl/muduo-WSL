@@ -25,29 +25,35 @@ const size_t Buffer::kInitialSize;
 ssize_t Buffer::readFd(int fd, int* savedErrno)
 {
   // saved an ioctl()/FIONREAD call to tell how much to read
-  char extrabuf[65536];
-  struct iovec vec[2];
+  char extrabuf[65536];  // 开辟栈空间，用于从socket读出时，buffer空间不够暂存，待buffer重新分配足够空间后，交还数据给buffer
+
+  struct iovec vec[2];  // 分散读集中写
+
   const size_t writable = writableBytes();
+
+  // 第一块缓冲区，指向buffer的可写空间
   vec[0].iov_base = begin()+writerIndex_;
   vec[0].iov_len = writable;
+  // 第二块缓冲区，指向临时栈数组。长度超过buffer的writable的部分存在这里，后期append到扩容后的buffer中
   vec[1].iov_base = extrabuf;
   vec[1].iov_len = sizeof extrabuf;
   // when there is enough space in this buffer, don't read into extrabuf.
   // when extrabuf is used, we read 128k-1 bytes at most.
-  const int iovcnt = (writable < sizeof extrabuf) ? 2 : 1;
-  const ssize_t n = sockets::readv(fd, vec, iovcnt);
+  const int iovcnt = (writable < sizeof extrabuf) ? 2 : 1;  // 选择几块缓冲区进行写入
+
+  const ssize_t n = sockets::readv(fd, vec, iovcnt);  // 从内核缓冲区读入buffer
   if (n < 0)
   {
-    *savedErrno = errno;
+    *savedErrno = errno;  // 保存errno防止被覆盖
   }
-  else if (implicit_cast<size_t>(n) <= writable)
+  else if (implicit_cast<size_t>(n) <= writable)  // 全部读入buffer
   {
     writerIndex_ += n;
   }
-  else
+  else  // extrabuf写入了n - writable长度数据
   {
     writerIndex_ = buffer_.size();
-    append(extrabuf, n - writable);
+    append(extrabuf, n - writable);  // 扩容buffer，并将数据从extrabuffer交还buffer
   }
   // if (n == writable + sizeof extrabuf)
   // {

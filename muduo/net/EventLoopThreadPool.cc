@@ -28,8 +28,10 @@ EventLoopThreadPool::EventLoopThreadPool(EventLoop* baseLoop, const string& name
 EventLoopThreadPool::~EventLoopThreadPool()
 {
   // Don't delete loop, it's stack variable
+  // el在创建线程的回调函数里面创建的，是一个栈上变量
 }
 
+// 创建numThreads_个subreactor
 void EventLoopThreadPool::start(const ThreadInitCallback& cb)
 {
   assert(!started_);
@@ -37,6 +39,7 @@ void EventLoopThreadPool::start(const ThreadInitCallback& cb)
 
   started_ = true;
 
+  // 在此线程池中，创建多个线程及对应的thread
   for (int i = 0; i < numThreads_; ++i)
   {
     char buf[name_.size() + 32];

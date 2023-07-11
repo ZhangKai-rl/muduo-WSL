@@ -81,7 +81,7 @@ InetAddress::InetAddress(StringArg ip, uint16_t port, bool ipv6)
     memZero(&addr6_, sizeof addr6_);
     sockets::fromIpPort(ip.c_str(), port, &addr6_);
   }
-  else
+  else  // 只需要看这里，忽略ipv6
   {
     memZero(&addr_, sizeof addr_);
     sockets::fromIpPort(ip.c_str(), port, &addr_);

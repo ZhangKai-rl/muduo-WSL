@@ -3,6 +3,8 @@
 //
 // Author: Shuo Chen (chenshuo at chenshuo dot com)
 
+// 日志后端的实现
+
 #ifndef MUDUO_BASE_ASYNCLOGGING_H
 #define MUDUO_BASE_ASYNCLOGGING_H
 
@@ -57,7 +59,7 @@ class AsyncLogging : noncopyable
 
   typedef muduo::detail::FixedBuffer<muduo::detail::kLargeBuffer> Buffer;
   typedef std::vector<std::unique_ptr<Buffer>> BufferVector;
-  typedef BufferVector::value_type BufferPtr;
+  typedef BufferVector::value_type BufferPtr;  // std::unique_ptr<Buffer>
 
   const int flushInterval_;
   std::atomic<bool> running_;
@@ -67,9 +69,9 @@ class AsyncLogging : noncopyable
   muduo::CountDownLatch latch_;
   muduo::MutexLock mutex_;
   muduo::Condition cond_ GUARDED_BY(mutex_);
-  BufferPtr currentBuffer_ GUARDED_BY(mutex_);
-  BufferPtr nextBuffer_ GUARDED_BY(mutex_);
-  BufferVector buffers_ GUARDED_BY(mutex_);
+  BufferPtr currentBuffer_ GUARDED_BY(mutex_);  // 当前缓冲区
+  BufferPtr nextBuffer_ GUARDED_BY(mutex_);  // 预备缓冲
+  BufferVector buffers_ GUARDED_BY(mutex_);  // 待写入文件的以填满的缓冲。日志前端持有两块buffer
 };
 
 }  // namespace muduo

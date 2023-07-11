@@ -31,6 +31,7 @@ AsyncLogging::AsyncLogging(const string& basename,
   buffers_.reserve(16);
 }
 
+// 日志前端写入buffer API.在那里调用？  日志前端生成日志时，会调用写入当前buffer。
 void AsyncLogging::append(const char* logline, int len)
 {
   muduo::MutexLockGuard lock(mutex_);
@@ -38,34 +39,40 @@ void AsyncLogging::append(const char* logline, int len)
   {
     currentBuffer_->append(logline, len);
   }
-  else
+  else  // 当前buffer无法放入新log
   {
-    buffers_.push_back(std::move(currentBuffer_));
+    buffers_.push_back(std::move(currentBuffer_));  // 要让当前buffer析构
 
     if (nextBuffer_)
     {
       currentBuffer_ = std::move(nextBuffer_);
     }
-    else
+    else  // 日志前端写入buffer速度太快，写完了当前buffer和备用buffer
     {
-      currentBuffer_.reset(new Buffer); // Rarely happens
+      currentBuffer_.reset(new Buffer); // Rarely happens  这种情况可能不止4块缓存
     }
     currentBuffer_->append(logline, len);
-    cond_.notify();
+
+    cond_.notify();  // 新加入一块满的可写缓冲块，因此唤醒日志后端写入到文件
   }
 }
 
 void AsyncLogging::threadFunc()
 {
   assert(running_ == true);
+
   latch_.countDown();
+
   LogFile output(basename_, rollSize_, false);
+
   BufferPtr newBuffer1(new Buffer);
   BufferPtr newBuffer2(new Buffer);
   newBuffer1->bzero();
   newBuffer2->bzero();
-  BufferVector buffersToWrite;
+
+  BufferVector buffersToWrite;  // 即将写入文件的buffer
   buffersToWrite.reserve(16);
+
   while (running_)
   {
     assert(newBuffer1 && newBuffer1->length() == 0);
@@ -74,6 +81,7 @@ void AsyncLogging::threadFunc()
 
     {
       muduo::MutexLockGuard lock(mutex_);
+      // 超时，或者写完一块或多块buffer
       if (buffers_.empty())  // unusual usage!
       {
         cond_.waitForSeconds(flushInterval_);
@@ -87,8 +95,12 @@ void AsyncLogging::threadFunc()
       }
     }
 
+    // 将buffersToWrite中的日志写到文件 
+
     assert(!buffersToWrite.empty());
 
+
+    // 解决日志堆积问题
     if (buffersToWrite.size() > 25)
     {
       char buf[256];
@@ -111,6 +123,8 @@ void AsyncLogging::threadFunc()
       // drop non-bzero-ed buffers, avoid trashing
       buffersToWrite.resize(2);
     }
+
+    // 重新填充两块日志后端buffer
 
     if (!newBuffer1)
     {

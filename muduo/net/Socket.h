@@ -47,7 +47,7 @@ class Socket : noncopyable
   bool getTcpInfoString(char* buf, int len) const;
 
   /// abort if address in use
-  void bindAddress(const InetAddress& localaddr);
+  void bindAddress(const InetAddress& localaddr);  // 监听端口的地址
   /// abort if address in use
   void listen();
 
@@ -55,14 +55,14 @@ class Socket : noncopyable
   /// a descriptor for the accepted socket, which has been
   /// set to non-blocking and close-on-exec. *peeraddr is assigned.
   /// On error, -1 is returned, and *peeraddr is untouched.
-  int accept(InetAddress* peeraddr);
+  int accept(InetAddress* peeraddr);  // 传出对端（客户端）connfd的地址
 
   void shutdownWrite();
 
   ///
   /// Enable/disable TCP_NODELAY (disable/enable Nagle's algorithm).
   ///
-  void setTcpNoDelay(bool on);
+  void setTcpNoDelay(bool on);  // 不tcp缓冲，直接发送
 
   ///
   /// Enable/disable SO_REUSEADDR

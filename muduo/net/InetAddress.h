@@ -33,12 +33,12 @@ class InetAddress : public muduo::copyable
 {
  public:
   /// Constructs an endpoint with given port number.
-  /// Mostly used in TcpServer listening.
+  /// Mostly used in TcpServer listening.      // loopbackOnly为环回地址标志
   explicit InetAddress(uint16_t port = 0, bool loopbackOnly = false, bool ipv6 = false);
 
   /// Constructs an endpoint with given ip and port.
   /// @c ip should be "1.2.3.4"
-  InetAddress(StringArg ip, uint16_t port, bool ipv6 = false);
+  InetAddress(StringArg ip, uint16_t port, bool ipv6 = false);  // 根据ip port创建tcp地址
 
   /// Constructs an endpoint with given struct @c sockaddr_in
   /// Mostly used when accepting new connections
@@ -76,7 +76,7 @@ class InetAddress : public muduo::copyable
   union
   {
     struct sockaddr_in addr_;
-    struct sockaddr_in6 addr6_;
+    struct sockaddr_in6 addr6_;  // 支持IPV6
   };
 };
 

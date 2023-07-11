@@ -25,7 +25,7 @@ namespace net
 class Channel;
 
 ///
-/// Base class for IO Multiplexing
+/// Base class for IO Multiplexing   IO多路复用基类
 ///
 /// This class doesn't own the Channel objects.
 class Poller : noncopyable
@@ -38,10 +38,12 @@ class Poller : noncopyable
 
   /// Polls the I/O events.
   /// Must be called in the loop thread.
+  // 进行epollwait监听，并把发生事件的channel列表传出
   virtual Timestamp poll(int timeoutMs, ChannelList* activeChannels) = 0;
 
   /// Changes the interested I/O events.
   /// Must be called in the loop thread.
+  // 被ventLoop::updateChannel调用。epollmod更新fd监听事件
   virtual void updateChannel(Channel* channel) = 0;
 
   /// Remove the channel, when it destructs.
@@ -50,6 +52,7 @@ class Poller : noncopyable
 
   virtual bool hasChannel(Channel* channel) const;
 
+  // 生成具体的IO多路复用Poller实现：如poll epoll。为什么不在cc文件中实现？基类不可包含派生类头文件
   static Poller* newDefaultPoller(EventLoop* loop);
 
   void assertInLoopThread() const
@@ -58,11 +61,12 @@ class Poller : noncopyable
   }
 
  protected:
+ // 根据文件描述符获取fd对应的channel
   typedef std::map<int, Channel*> ChannelMap;
-  ChannelMap channels_;
+  ChannelMap channels_;  // poller上注册的fd及对应channel，可能它没有感兴趣事件
 
  private:
-  EventLoop* ownerLoop_;
+  EventLoop* ownerLoop_;  // 所属的el
 };
 
 }  // namespace net

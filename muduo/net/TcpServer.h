@@ -33,7 +33,7 @@ class EventLoopThreadPool;
 class TcpServer : noncopyable
 {
  public:
-  typedef std::function<void(EventLoop*)> ThreadInitCallback;
+  typedef std::function<void(EventLoop*)> ThreadInitCallback;  // 最终传给EventLoopThread::callback_;
   enum Option  // 是否复用端口
   {
     kNoReusePort,
@@ -61,7 +61,7 @@ class TcpServer : noncopyable
   /// - 1 means all I/O in another thread.
   /// - N means a thread pool with N threads, new connections
   ///   are assigned on a round-robin basis.
-  void setThreadNum(int numThreads);
+  void setThreadNum(int numThreads);  // 设置顶层subloop（subReacto）的个数
   void setThreadInitCallback(const ThreadInitCallback& cb)
   { threadInitCallback_ = cb; }
   /// valid after calling start()
@@ -72,7 +72,9 @@ class TcpServer : noncopyable
   ///
   /// It's harmless to call it multiple times.
   /// Thread safe.
-  void start();
+  void start();  // 开启服务器监听
+
+  // tcpserver中的四个回调函数，由再上一层的进行设置
 
   /// Set connection callback.
   /// Not thread safe.
@@ -94,24 +96,33 @@ class TcpServer : noncopyable
   void newConnection(int sockfd, const InetAddress& peerAddr);
   /// Thread safe.
   void removeConnection(const TcpConnectionPtr& conn);
-  /// Not thread safe, but in loop
+  /// Not thread safe, but in loop  被上面调用
   void removeConnectionInLoop(const TcpConnectionPtr& conn);
 
   typedef std::map<string, TcpConnectionPtr> ConnectionMap;
 
-  EventLoop* loop_;  // the acceptor loop
+  EventLoop* loop_;  // the acceptor loop  mainreactor/mainloop
+
   const string ipPort_;
   const string name_;
-  std::unique_ptr<Acceptor> acceptor_; // avoid revealing Acceptor
-  std::shared_ptr<EventLoopThreadPool> threadPool_;
-  ConnectionCallback connectionCallback_;
+
+  std::unique_ptr<Acceptor> acceptor_; // avoid revealing Acceptor  mainloop中的acceptor
+
+  std::shared_ptr<EventLoopThreadPool> threadPool_;  // one loop per thread
+
+  // 上层用户设置的回调    业务层逻辑
+  ConnectionCallback connectionCallback_;  
   MessageCallback messageCallback_;
   WriteCompleteCallback writeCompleteCallback_;
-  ThreadInitCallback threadInitCallback_;
-  AtomicInt32 started_;
+
+  ThreadInitCallback threadInitCallback_;  // loop线程初始化的回调.最终传给EventLoopThread::callback_;
+
+  AtomicInt32 started_;  // 作用？
+
   // always in loop thread
   int nextConnId_;
-  ConnectionMap connections_;
+  
+  ConnectionMap connections_;  // 所有tcp连接的名称，连接指针映射表，保存所有tcp连接
 };
 
 }  // namespace net

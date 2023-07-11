@@ -45,11 +45,12 @@ TcpConnection::TcpConnection(EventLoop* loop,
     state_(kConnecting),
     reading_(true),
     socket_(new Socket(sockfd)),
-    channel_(new Channel(loop, sockfd)),
+    channel_(new Channel(loop, sockfd)),  // 根据connfd创建tcpconnection
     localAddr_(localAddr),
     peerAddr_(peerAddr),
     highWaterMark_(64*1024*1024)
 {
+  // 非从reactor，非IO线程，的channel fd的回调函数绑定
   channel_->setReadCallback(
       std::bind(&TcpConnection::handleRead, this, _1));
   channel_->setWriteCallback(
@@ -135,24 +136,31 @@ void TcpConnection::sendInLoop(const StringPiece& message)
 {
   sendInLoop(message.data(), message.size());
 }
-
+// 这个并不是epoll上监听到写事件的写函数（监听到写事件使用回调handlewrite处理），而是单纯的一个send data
+// 发送数据，应用写的快，而内核发送数据慢，需要把待发送的数据写入缓冲区，而且设置水位回调（降低发送速率）
+// 比较难
 void TcpConnection::sendInLoop(const void* data, size_t len)
 {
   loop_->assertInLoopThread();
   ssize_t nwrote = 0;
   size_t remaining = len;
   bool faultError = false;
+
   if (state_ == kDisconnected)
   {
     LOG_WARN << "disconnected, give up writing";
     return;
   }
+
   // if no thing in output queue, try writing directly
+  // 不关注写事件  并且  buffer没有要读的， 那么直接将data写入
   if (!channel_->isWriting() && outputBuffer_.readableBytes() == 0)
   {
-    nwrote = sockets::write(channel_->fd(), data, len);
+    // 直接先尽力写 
+    nwrote = sockets::write(channel_->fd(), data, len);  // 这里没调用buffer直接写data
     if (nwrote >= 0)
     {
+      // 没有全部写入kernel buffer
       remaining = len - nwrote;
       if (remaining == 0 && writeCompleteCallback_)
       {
@@ -173,6 +181,9 @@ void TcpConnection::sendInLoop(const void* data, size_t len)
     }
   }
 
+  // outputbuffer中也有要写入的，两者一起写入kernel buffer
+
+  // 这一次write并没有将data完全发入socket。需要重新给****************************
   assert(remaining <= len);
   if (!faultError && remaining > 0)
   {
@@ -186,7 +197,7 @@ void TcpConnection::sendInLoop(const void* data, size_t len)
     outputBuffer_.append(static_cast<const char*>(data)+nwrote, remaining);
     if (!channel_->isWriting())
     {
-      channel_->enableWriting();
+      channel_->enableWriting();  // 注册写事件，出发后使用TcpConnection::handleWrite将二者一起写入
     }
   }
 }
@@ -208,7 +219,7 @@ void TcpConnection::shutdownInLoop()
   if (!channel_->isWriting())
   {
     // we are not writing
-    socket_->shutdownWrite();
+    socket_->shutdownWrite();  // 关闭写端
   }
 }
 
@@ -320,14 +331,17 @@ void TcpConnection::stopReadInLoop()
   }
 }
 
+// 以下俩函数在tcpServer::newConnection中注册
 void TcpConnection::connectEstablished()
 {
   loop_->assertInLoopThread();
   assert(state_ == kConnecting);
+
   setState(kConnected);
   channel_->tie(shared_from_this());
-  channel_->enableReading();
+  channel_->enableReading();  // 将这个新的tcpconnection注册到此subreactor的poller中
 
+  // 执行用户定义的连接回调函数
   connectionCallback_(shared_from_this());
 }
 
@@ -348,6 +362,7 @@ void TcpConnection::handleRead(Timestamp receiveTime)
 {
   loop_->assertInLoopThread();
   int savedErrno = 0;
+  // TcpConnection的数据，使用buffer进行读取
   ssize_t n = inputBuffer_.readFd(channel_->fd(), &savedErrno);
   if (n > 0)
   {
@@ -376,18 +391,19 @@ void TcpConnection::handleWrite()
     if (n > 0)
     {
       outputBuffer_.retrieve(n);
-      if (outputBuffer_.readableBytes() == 0)
+      if (outputBuffer_.readableBytes() == 0)  // 已经完全写入kernel buffer
       {
-        channel_->disableWriting();
+        channel_->disableWriting();  // 为什么关闭写事件？写不同于读，当kernel buffer未满时会不断出发写事件（对应后面，没写完时，会不断触发写事件，然后buffer=》kernel buffer）
         if (writeCompleteCallback_)
         {
           loop_->queueInLoop(std::bind(writeCompleteCallback_, shared_from_this()));
         }
         if (state_ == kDisconnecting)
         {
-          shutdownInLoop();
+          shutdownInLoop();  // 关闭写端，半关闭
         }
       }
+      //如果没完全写入，kernel buffer就满了，但是buffer中还有可读数据，会直接结束函数，等待kernel buffer由满变为不满，产生可写事件再次进行写操作。即没写完会多次调用此函数直至写完。
     }
     else
     {

@@ -22,10 +22,12 @@ namespace net
 
 class EventLoop;
 
+// 在这个类中创建el和线程，并将两者进行绑定， one loop per thread
+
 class EventLoopThread : noncopyable
 {
  public:
-  typedef std::function<void(EventLoop*)> ThreadInitCallback;
+  typedef std::function<void(EventLoop*)> ThreadInitCallback;  // 这就是一个上层回调
 
   EventLoopThread(const ThreadInitCallback& cb = ThreadInitCallback(),
                   const string& name = string());
@@ -33,11 +35,11 @@ class EventLoopThread : noncopyable
   EventLoop* startLoop();
 
  private:
-  void threadFunc();
+  void threadFunc();  // thread创建的子线程的运行函数
 
   EventLoop* loop_ GUARDED_BY(mutex_);
-  bool exiting_;
-  Thread thread_;
+  bool exiting_;  // 是否退出循环
+  Thread thread_;  // 此loop绑定的thread
   MutexLock mutex_;
   Condition cond_ GUARDED_BY(mutex_);
   ThreadInitCallback callback_;

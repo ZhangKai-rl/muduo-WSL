@@ -49,7 +49,7 @@ class Timestamp : public muduo::copyable,
 
   // default copy/assignment/dtor are Okay
 
-  string toString() const;
+  string toString() const;  // 转成string
   string toFormattedString(bool showMicroseconds = true) const;
 
   bool valid() const { return microSecondsSinceEpoch_ > 0; }
@@ -62,7 +62,7 @@ class Timestamp : public muduo::copyable,
   ///
   /// Get time of now.
   ///
-  static Timestamp now();
+  static Timestamp now();  // 获取当前时间
   static Timestamp invalid()
   {
     return Timestamp();
@@ -81,7 +81,7 @@ class Timestamp : public muduo::copyable,
   static const int kMicroSecondsPerSecond = 1000 * 1000;
 
  private:
-  int64_t microSecondsSinceEpoch_;
+  int64_t microSecondsSinceEpoch_;  // 长整型存储当前时间
 };
 
 inline bool operator<(Timestamp lhs, Timestamp rhs)

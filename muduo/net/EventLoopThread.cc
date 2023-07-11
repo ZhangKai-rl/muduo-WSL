@@ -17,7 +17,7 @@ EventLoopThread::EventLoopThread(const ThreadInitCallback& cb,
                                  const string& name)
   : loop_(NULL),
     exiting_(false),
-    thread_(std::bind(&EventLoopThread::threadFunc, this), name),
+    thread_(std::bind(&EventLoopThread::threadFunc, this), name),  // 在这里创建线程对象，并没有创建子线程。这里bind 类成员函数，第一个参数为this指针。
     mutex_(),
     cond_(mutex_),
     callback_(cb)
@@ -39,14 +39,14 @@ EventLoopThread::~EventLoopThread()
 EventLoop* EventLoopThread::startLoop()
 {
   assert(!thread_.started());
-  thread_.start();
+  thread_.start();  // 进行子线程的创建，然后子线程执行：void EventLoopThread::threadFunc()函数。
 
   EventLoop* loop = NULL;
   {
     MutexLockGuard lock(mutex_);
     while (loop_ == NULL)
     {
-      cond_.wait();
+      cond_.wait();  // 下面函数notify后，解除阻塞
     }
     loop = loop_;
   }
@@ -54,11 +54,12 @@ EventLoop* EventLoopThread::startLoop()
   return loop;
 }
 
+// 这个方法，是在新创建的子线程里运行的
 void EventLoopThread::threadFunc()
 {
-  EventLoop loop;
+  EventLoop loop;  // el创建的位置。与上面创建的子线程一一对应。  体现one loop per thread
 
-  if (callback_)
+  if (callback_)  // 运行用户线程初始化业务逻辑回调
   {
     callback_(&loop);
   }
@@ -69,7 +70,7 @@ void EventLoopThread::threadFunc()
     cond_.notify();
   }
 
-  loop.loop();
+  loop.loop();  // Eventloop loop => Pollr.poll
   //assert(exiting_);
   MutexLockGuard lock(mutex_);
   loop_ = NULL;
