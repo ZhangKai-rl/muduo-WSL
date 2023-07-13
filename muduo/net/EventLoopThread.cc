@@ -17,6 +17,7 @@ EventLoopThread::EventLoopThread(const ThreadInitCallback& cb,
                                  const string& name)
   : loop_(NULL),
     exiting_(false),
+    // 这里进行new Thread 传入其执行函数EventLoopThread::threadFunc
     thread_(std::bind(&EventLoopThread::threadFunc, this), name),  // 在这里创建线程对象，并没有创建子线程。这里bind 类成员函数，第一个参数为this指针。
     mutex_(),
     cond_(mutex_),
@@ -39,7 +40,7 @@ EventLoopThread::~EventLoopThread()
 EventLoop* EventLoopThread::startLoop()
 {
   assert(!thread_.started());
-  thread_.start();  // 进行子线程的创建，然后子线程执行：void EventLoopThread::threadFunc()函数。
+  thread_.start();  // 进行子线程的创建pthread_create，然后子线程执行：void EventLoopThread::threadFunc()函数。
 
   EventLoop* loop = NULL;
   {
@@ -54,10 +55,10 @@ EventLoop* EventLoopThread::startLoop()
   return loop;
 }
 
-// 这个方法，是在新创建的子线程里运行的
+// 这个方法，**是在新创建的子线程里运行的**
 void EventLoopThread::threadFunc()
 {
-  EventLoop loop;  // el创建的位置。与上面创建的子线程一一对应。  体现one loop per thread
+  EventLoop loop;  // **sub el创建的位置**。与上面创建的子线程一一对应。  体现one loop per thread
 
   if (callback_)  // 运行用户线程初始化业务逻辑回调
   {

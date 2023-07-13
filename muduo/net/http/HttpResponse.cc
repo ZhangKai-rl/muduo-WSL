@@ -15,6 +15,7 @@
 using namespace muduo;
 using namespace muduo::net;
 
+// 写http请求报文
 void HttpResponse::appendToBuffer(Buffer* output) const
 {
   char buf[32];

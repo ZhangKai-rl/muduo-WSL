@@ -41,7 +41,7 @@ void AsyncLogging::append(const char* logline, int len)
   }
   else  // 当前buffer无法放入新log
   {
-    buffers_.push_back(std::move(currentBuffer_));  // 要让当前buffer析构
+    buffers_.push_back(std::move(currentBuffer_));  // 移动语义（要让当前buffer析构）到写入文件buffers中
 
     if (nextBuffer_)
     {
@@ -57,6 +57,7 @@ void AsyncLogging::append(const char* logline, int len)
   }
 }
 
+// 运行在哪？日志后端的实现，写入日志文件刷盘操作。
 void AsyncLogging::threadFunc()
 {
   assert(running_ == true);
@@ -65,6 +66,7 @@ void AsyncLogging::threadFunc()
 
   LogFile output(basename_, rollSize_, false);
 
+  // 新建两块空闲buffer，以备在临界区交换
   BufferPtr newBuffer1(new Buffer);
   BufferPtr newBuffer2(new Buffer);
   newBuffer1->bzero();
@@ -80,8 +82,9 @@ void AsyncLogging::threadFunc()
     assert(buffersToWrite.empty());
 
     {
+      // 临界区
       muduo::MutexLockGuard lock(mutex_);
-      // 超时，或者写完一块或多块buffer
+      // 没有需要写入的buffer
       if (buffers_.empty())  // unusual usage!
       {
         cond_.waitForSeconds(flushInterval_);
@@ -115,7 +118,7 @@ void AsyncLogging::threadFunc()
     for (const auto& buffer : buffersToWrite)
     {
       // FIXME: use unbuffered stdio FILE ? or use ::writev ?
-      output.append(buffer->data(), buffer->length());
+      output.append(buffer->data(), buffer->length());  // 添加到LogFile中等待刷盘
     }
 
     if (buffersToWrite.size() > 2)
@@ -143,7 +146,7 @@ void AsyncLogging::threadFunc()
     }
 
     buffersToWrite.clear();
-    output.flush();
+    output.flush();  // LogFile刷盘
   }
   output.flush();
 }

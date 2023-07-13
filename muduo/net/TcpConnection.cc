@@ -154,6 +154,7 @@ void TcpConnection::sendInLoop(const void* data, size_t len)
 
   // if no thing in output queue, try writing directly
   // 不关注写事件  并且  buffer没有要读的， 那么直接将data写入
+  // channel第一次开始写数据
   if (!channel_->isWriting() && outputBuffer_.readableBytes() == 0)
   {
     // 直接先尽力写 
@@ -184,10 +185,11 @@ void TcpConnection::sendInLoop(const void* data, size_t len)
   // outputbuffer中也有要写入的，两者一起写入kernel buffer
 
   // 这一次write并没有将data完全发入socket。需要重新给****************************
+  // 剩余数据放到缓冲区中，然后给channel注册epollout事件。poller发现有空间（读事件），则调用handlewrite继续发送。
   assert(remaining <= len);
   if (!faultError && remaining > 0)
   {
-    size_t oldLen = outputBuffer_.readableBytes();
+    size_t oldLen = outputBuffer_.readableBytes();  // 目前发送缓冲区待发送数据长度
     if (oldLen + remaining >= highWaterMark_
         && oldLen < highWaterMark_
         && highWaterMarkCallback_)
@@ -391,7 +393,7 @@ void TcpConnection::handleWrite()
     if (n > 0)
     {
       outputBuffer_.retrieve(n);
-      if (outputBuffer_.readableBytes() == 0)  // 已经完全写入kernel buffer
+      if (outputBuffer_.readableBytes() == 0)  // 已经将buffer中的所有可读字节完全写入kernel buffer
       {
         channel_->disableWriting();  // 为什么关闭写事件？写不同于读，当kernel buffer未满时会不断出发写事件（对应后面，没写完时，会不断触发写事件，然后buffer=》kernel buffer）
         if (writeCompleteCallback_)
@@ -403,7 +405,7 @@ void TcpConnection::handleWrite()
           shutdownInLoop();  // 关闭写端，半关闭
         }
       }
-      //如果没完全写入，kernel buffer就满了，但是buffer中还有可读数据，会直接结束函数，等待kernel buffer由满变为不满，产生可写事件再次进行写操作。即没写完会多次调用此函数直至写完。
+      //如果没完全写入，仍有可读字节。kernel buffer就满了，但是buffer中还有可读数据，会直接结束函数，等待kernel buffer由满变为不满，产生可写事件再次进行写操作。即没写完会多次调用此函数直至写完。
     }
     else
     {
@@ -431,9 +433,9 @@ void TcpConnection::handleClose()
   channel_->disableAll();
 
   TcpConnectionPtr guardThis(shared_from_this());
-  connectionCallback_(guardThis);
+  connectionCallback_(guardThis);  // 执行用户设置的回调
   // must be the last line
-  closeCallback_(guardThis);
+  closeCallback_(guardThis);   // TcpServer::removeConnection
 }
 
 void TcpConnection::handleError()

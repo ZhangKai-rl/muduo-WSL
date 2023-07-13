@@ -61,7 +61,7 @@ void TcpServer::start()
 {
   if (started_.getAndSet(1) == 0)  // 只能启动一个tcpserver
   {
-    threadPool_->start(threadInitCallback_);  // 启动最底层的loop线程池
+    threadPool_->start(threadInitCallback_);  // 启动最底层的loop线程池. 开启baseloop.loop()
 
     assert(!acceptor_->listenning());
     loop_->runInLoop(  // 主loop   创建listenfd进行注册监听

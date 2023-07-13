@@ -11,6 +11,8 @@
 
 #include <memory>
 
+// 支持日志文件自动滚动
+
 namespace muduo
 {
 

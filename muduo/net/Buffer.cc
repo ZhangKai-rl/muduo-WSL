@@ -39,7 +39,7 @@ ssize_t Buffer::readFd(int fd, int* savedErrno)
   vec[1].iov_len = sizeof extrabuf;
   // when there is enough space in this buffer, don't read into extrabuf.
   // when extrabuf is used, we read 128k-1 bytes at most.
-  const int iovcnt = (writable < sizeof extrabuf) ? 2 : 1;  // 选择几块缓冲区进行写入
+  const int iovcnt = (writable < sizeof extrabuf) ? 2 : 1;  // 缓冲区可写不足64K，则选择2
 
   const ssize_t n = sockets::readv(fd, vec, iovcnt);  // 从内核缓冲区读入buffer
   if (n < 0)

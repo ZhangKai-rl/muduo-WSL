@@ -80,7 +80,7 @@ class EventLoop : noncopyable
 
   // timers
 
-  // 这三个是在某个时间执行回调
+  // 这三个是在某个时间执行回调。定时器相关TimeQueue
   ///
   /// Runs callback at 'time'.
   /// Safe to call from other threads.

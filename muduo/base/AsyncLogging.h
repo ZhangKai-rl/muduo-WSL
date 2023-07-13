@@ -37,6 +37,7 @@ class AsyncLogging : noncopyable
     }
   }
 
+  // 日志前后端接口。前端通过append给后端发数据
   void append(const char* logline, int len);
 
   void start()
@@ -67,7 +68,7 @@ class AsyncLogging : noncopyable
   const off_t rollSize_;
   muduo::Thread thread_;
   muduo::CountDownLatch latch_;
-  muduo::MutexLock mutex_;
+  muduo::MutexLock mutex_;  // 保护后面四个成员
   muduo::Condition cond_ GUARDED_BY(mutex_);
   BufferPtr currentBuffer_ GUARDED_BY(mutex_);  // 当前缓冲区
   BufferPtr nextBuffer_ GUARDED_BY(mutex_);  // 预备缓冲

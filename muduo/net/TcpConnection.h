@@ -136,7 +136,7 @@ class TcpConnection : noncopyable,
   void startReadInLoop();
   void stopReadInLoop();
 
-  EventLoop* loop_;  // 此tcpConnection属于的subeventloop。一个el对应多个tcpConnection
+  EventLoop* loop_;  // 此tcpConnection属于的subeventloop。一个el中有多个tcpConnection
   const string name_;  // 此次tcpconnection的name？
   StateE state_;  // FIXME: use atomic variable
   bool reading_;
@@ -158,7 +158,7 @@ class TcpConnection : noncopyable,
   size_t highWaterMark_;
 
   Buffer inputBuffer_;  // 接受数据到inputbuffer  内核buffer =》 inputbuffer =》 用户read
-  Buffer outputBuffer_; // FIXME: use list<Buffer> as output buffer.  用户send到outputbuffer  用户send =》 outputbuffer =》 kernel buffer   TCP缓冲区是由大小限制的
+  Buffer outputBuffer_; // FIXME: use list<Buffer> as output buffer.  用户send到outputbuffer  用户send =》 outputbuffer =》 kernel buffer   TCP缓冲区是有大小限制的
 
   boost::any context_;
   // FIXME: creationTime_, lastReceiveTime_
