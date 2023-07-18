@@ -60,6 +60,7 @@ int readFile(StringArg filename,
 }
 
 // not thread safe
+// 封装了OS提供的，底层的创建/打开文件、写文件、关闭文件等操作接口，并没有专门考虑线程安全问题。线程安全由上一层级调用者，如LogFile来保证。
 class AppendFile : noncopyable
 {
  public:

@@ -18,8 +18,9 @@ AsyncLogging::AsyncLogging(const string& basename,
     running_(false),
     basename_(basename),
     rollSize_(rollSize),
+    // 创建muduo::Thread对象，该对象创建子线程时，执行AsyncLogging::threadFunc函数刷盘
     thread_(std::bind(&AsyncLogging::threadFunc, this), "Logging"),
-    latch_(1),
+    latch_(1),  // 初始值为1，等待日志后端线程创建好
     mutex_(),
     cond_(mutex_),
     currentBuffer_(new Buffer),
@@ -66,13 +67,13 @@ void AsyncLogging::threadFunc()
 
   LogFile output(basename_, rollSize_, false);
 
-  // 新建两块空闲buffer，以备在临界区交换
+  // 新建两块空闲buffer，以备在临界区交换.分别替换currentBuffer_和nextBuffer_
   BufferPtr newBuffer1(new Buffer);
   BufferPtr newBuffer2(new Buffer);
   newBuffer1->bzero();
   newBuffer2->bzero();
 
-  BufferVector buffersToWrite;  // 即将写入文件的buffer
+  BufferVector buffersToWrite;  // 待写入buffers。用于替换已满缓冲队列buffers_
   buffersToWrite.reserve(16);
 
   while (running_)
@@ -103,8 +104,8 @@ void AsyncLogging::threadFunc()
     assert(!buffersToWrite.empty());
 
 
-    // 解决日志堆积问题
-    if (buffersToWrite.size() > 25)
+    // 解决日志堆积问题：超过25块待写，只保留前两个。
+    if (buffersToWrite.size() > 25) // 4MB * 25 = 100 MB
     {
       char buf[256];
       snprintf(buf, sizeof buf, "Dropped log messages at %s, %zd larger buffers\n",
@@ -121,13 +122,14 @@ void AsyncLogging::threadFunc()
       output.append(buffer->data(), buffer->length());  // 添加到LogFile中等待刷盘
     }
 
+    // 待写缓冲buffersToWrite已经刷盘完成，去除多余buffer
     if (buffersToWrite.size() > 2)
     {
       // drop non-bzero-ed buffers, avoid trashing
       buffersToWrite.resize(2);
     }
 
-    // 重新填充两块日志后端buffer
+    // 重新使用待写缓冲buffersToWrite填充两块日志后端buffer1、buiffer2
 
     if (!newBuffer1)
     {

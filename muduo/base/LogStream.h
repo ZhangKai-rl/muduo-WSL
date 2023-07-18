@@ -77,11 +77,11 @@ class FixedBuffer : noncopyable
 
 }  // namespace detail
 
-class LogStream : noncopyable
+class LogStream : noncopyable  // 主要提供operator<<操作，将用户提供的整型数、浮点数、字符、字符串、字符数组、二进制内存、另一个Small Buffer，格式化为字符串，并加入当前类的Small Buffer。
 {
   typedef LogStream self;
  public:
-  typedef detail::FixedBuffer<detail::kSmallBuffer> Buffer;
+  typedef detail::FixedBuffer<detail::kSmallBuffer> Buffer;  // 存放一条消息的类
 
   self& operator<<(bool v)
   {
@@ -163,7 +163,7 @@ class LogStream : noncopyable
   template<typename T>
   void formatInteger(T);
 
-  Buffer buffer_;
+  Buffer buffer_;  // 存放一条消息的buffer
 
   static const int kMaxNumericSize = 32;
 };

@@ -60,6 +60,7 @@ class Logger
     int size_;
   };
 
+  // 输出日志接口
   Logger(SourceFile file, int line);
   Logger(SourceFile file, int line, LogLevel level);
   Logger(SourceFile file, int line, LogLevel level, const char* func);
@@ -73,25 +74,25 @@ class Logger
 
   typedef void (*OutputFunc)(const char* msg, int len);
   typedef void (*FlushFunc)();
-  static void setOutput(OutputFunc);
+  static void setOutput(OutputFunc);  // 设置日志输出位置：默认为stdout。输出日志文件需要设置参数为AsyncLogging对象。
   static void setFlush(FlushFunc);
   static void setTimeZone(const TimeZone& tz);
 
  private:
 
-class Impl
+class Impl  // 负责Logger主要实现，组装一整条完整log
 {
  public:
   typedef Logger::LogLevel LogLevel;
   Impl(LogLevel level, int old_errno, const SourceFile& file, int line);
   void formatTime();
-  void finish();
+  void finish();  // 添加一条log后缀
 
-  Timestamp time_;
-  LogStream stream_;
+  Timestamp time_;    // 用于获取当前时间
+  LogStream stream_;  // 用于格式化用户log数据, 提供operator<<接口, 保存log消息
   LogLevel level_;
-  int line_;
-  SourceFile basename_;
+  int line_;          // 源代码所在行
+  SourceFile basename_; // 源代码所在文件名(不含路径)信息
 };
 
   Impl impl_;
@@ -121,6 +122,7 @@ inline Logger::LogLevel Logger::logLevel()
 //   else
 //     logWarnStream << "Bad news";
 //
+
 // 便于用户以C++风格记录日志： LOG_TRACE << "trace" << 1;
 #define LOG_TRACE if (muduo::Logger::logLevel() <= muduo::Logger::TRACE) \
   muduo::Logger(__FILE__, __LINE__, muduo::Logger::TRACE, __func__).stream()

@@ -43,7 +43,7 @@ class AsyncLogging : noncopyable
   void start()
   {
     running_ = true;
-    thread_.start();
+    thread_.start();  // 创建日志后端线程
     latch_.wait();
   }
 
@@ -72,7 +72,7 @@ class AsyncLogging : noncopyable
   muduo::Condition cond_ GUARDED_BY(mutex_);
   BufferPtr currentBuffer_ GUARDED_BY(mutex_);  // 当前缓冲区
   BufferPtr nextBuffer_ GUARDED_BY(mutex_);  // 预备缓冲
-  BufferVector buffers_ GUARDED_BY(mutex_);  // 待写入文件的以填满的缓冲。日志前端持有两块buffer
+  BufferVector buffers_ GUARDED_BY(mutex_);  // 已满缓冲块数组。
 };
 
 }  // namespace muduo
